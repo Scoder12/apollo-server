@@ -1,6 +1,6 @@
 import { ApolloServer } from '..';
 import type { ApolloServerOptions, GatewayInterface } from '..';
-import type { GraphQLSchema } from 'graphql';
+import { GraphQLError, GraphQLSchema } from 'graphql';
 import type { ApolloServerPlugin, BaseContext } from '../externalTypes';
 import { ApolloServerPluginCacheControlDisabled } from '../plugin/disabled/index.js';
 import { ApolloServerPluginUsageReporting } from '../plugin/usageReporting/index.js';
@@ -23,9 +23,9 @@ const resolvers = {
       return 'world';
     },
     error() {
-      const myError = new Error('A test error');
-      (myError as any).someField = 'value';
-      throw myError;
+      throw new GraphQLError('A test error', {
+        extensions: { someField: 'value' },
+      });
     },
     contextFoo(_root: any, _args: any, context: any) {
       return context.foo;
@@ -254,7 +254,7 @@ describe('ApolloServer executeOperation', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors?.[0].extensions).toStrictEqual({
       code: 'INTERNAL_SERVER_ERROR',
-      exception: { someField: 'value' },
+      someField: 'value',
     });
     await server.stop();
   });
@@ -275,7 +275,7 @@ describe('ApolloServer executeOperation', () => {
     const extensions = result.errors?.[0].extensions;
     expect(extensions).toHaveProperty('code', 'INTERNAL_SERVER_ERROR');
     expect(extensions).toHaveProperty('stacktrace');
-    expect(extensions).toHaveProperty('exception', { someField: 'value' });
+    expect(extensions).toHaveProperty('someField', 'value');
     await server.stop();
   });
 

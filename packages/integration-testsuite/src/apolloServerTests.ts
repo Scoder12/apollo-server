@@ -862,14 +862,6 @@ export function defineIntegrationTestSuiteApolloServerTests(
           locations: [{ line: 1, column: 2 }],
           extensions: {
             code: 'INTERNAL_SERVER_ERROR',
-            exception: {
-              name: 'ValidationError',
-              message: 'email must be a valid email',
-              type: undefined,
-              value: { email: 'invalid-email' },
-              errors: ['email must be a valid email'],
-              path: 'email',
-            },
           },
         });
         expect(formatErrorArgs[1] instanceof Error).toBe(true);
@@ -1765,7 +1757,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
         expect(result.errors).toBeDefined();
         expect(result.errors.length).toEqual(1);
         expect(result.errors[0].extensions.code).toEqual('SOME_CODE');
-        expect(result.errors[0].extensions.exception).toBeUndefined();
+        expect(result.errors[0].extensions).not.toHaveProperty('exception');
       });
 
       it('propagates error codes with null response in production', async () => {
@@ -1796,7 +1788,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
         expect(result.errors).toBeDefined();
         expect(result.errors.length).toEqual(1);
         expect(result.errors[0].extensions.code).toEqual('SOME_CODE');
-        expect(result.errors[0].extensions.exception).toBeUndefined();
+        expect(result.errors[0].extensions).not.toHaveProperty('exception');
       });
 
       it('propagates error codes in dev mode', async () => {
@@ -1828,7 +1820,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
         expect(result.errors).toBeDefined();
         expect(result.errors.length).toEqual(1);
         expect(result.errors[0].extensions.code).toEqual('SOME_CODE');
-        expect(result.errors[0].extensions.exception).toBeUndefined();
+        expect(result.errors[0].extensions).not.toHaveProperty('exception');
         expect(result.errors[0].extensions.stacktrace).toBeDefined();
       });
 

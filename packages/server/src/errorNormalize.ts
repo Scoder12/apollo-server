@@ -23,7 +23,16 @@ export function normalizeAndFormatErrors(
   const formatError = options.formatError ?? ((error) => error);
   return errors.map((error) => {
     try {
-      return formatError(enrichError(error), error);
+      return formatError(
+        enrichError(error),
+        // If the error was thrown in a resolver, graphql-js will wrap it in a
+        // GraphQLError before it gets back to Apollo Server (to add the path
+        // etc to it). We'd like to give users their actual original error. (If
+        // there is no path, this error didn't come from a resolver.)
+        error instanceof GraphQLError && error.path && error.originalError
+          ? error.originalError
+          : error,
+      );
     } catch (formattingError) {
       if (options.includeStacktraceInErrorResponses) {
         // includeStacktraceInErrorResponses is used in development
@@ -39,16 +48,6 @@ export function normalizeAndFormatErrors(
     }
   });
 
-  // You can't spread anything that isn't an object. If somebody
-  // puts a non-object on extensions.exception, we will just replace
-  // it with the empty object.
-  function ensureObject(x: unknown): object {
-    if (x && typeof x === 'object') {
-      return x;
-    }
-    return {};
-  }
-
   function enrichError(maybeError: unknown): GraphQLFormattedError {
     const graphqlError = ensureGraphQLError(maybeError);
 
@@ -58,20 +57,6 @@ export function normalizeAndFormatErrors(
         graphqlError.extensions.code ??
         ApolloServerErrorCode.INTERNAL_SERVER_ERROR,
     };
-
-    const { originalError } = graphqlError;
-    if (originalError != null && !(originalError instanceof GraphQLError)) {
-      const originalErrorEnumerableEntries = Object.entries(
-        originalError,
-      ).filter(([key]) => key !== 'extensions');
-
-      if (originalErrorEnumerableEntries.length > 0) {
-        extensions.exception = {
-          ...ensureObject(extensions.exception),
-          ...Object.fromEntries(originalErrorEnumerableEntries),
-        };
-      }
-    }
 
     if (options.includeStacktraceInErrorResponses) {
       // Note that if ensureGraphQLError created graphqlError from an

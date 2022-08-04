@@ -1,55 +1,28 @@
-import { GraphQLError } from 'graphql';
+import { GraphQLError, GraphQLFormattedError } from 'graphql';
 
 import { normalizeAndFormatErrors } from '../errorNormalize.js';
 
 describe('Errors', () => {
   describe('normalizeAndFormatErrors', () => {
-    type CreateFormatError =
-      | ((
-          options: Record<string, any>,
-          errors: Error[],
-        ) => Record<string, any>[])
-      | ((options?: Record<string, any>) => Record<string, any>);
     const message = 'message';
     const code = 'CODE';
     const key = 'value';
 
-    const createFormattedError: CreateFormatError = (
-      options?: Record<string, any>,
-      errors?: Error[],
-    ) => {
-      if (errors === undefined) {
-        const error = new GraphQLError(message, {
-          extensions: { code, key },
-        });
-        return normalizeAndFormatErrors(
-          [
-            new GraphQLError(
-              error.message,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              error,
-            ),
-          ],
-          options,
-        )[0];
-      } else {
-        return normalizeAndFormatErrors(errors, options);
-      }
-    };
-
     it('exposes a stacktrace in debug mode', () => {
       const thrown = new Error(message);
       (thrown as any).key = key;
-      const error = normalizeAndFormatErrors([
-        new GraphQLError(thrown.message, { originalError: thrown }),
+      const [error] = normalizeAndFormatErrors(
+        [
+          new GraphQLError(thrown.message, {
+            originalError: thrown,
+            extensions: { code, key },
+          }),
+        ],
         { includeStacktraceInErrorResponses: true },
-      ])[0];
+      );
       expect(error.message).toEqual(message);
       expect(error.extensions?.key).toEqual(key);
-      expect(error.extensions?.exception).toBeUndefined();
+      expect(error.extensions).not.toHaveProperty('exception'); // Removed in AS4
       expect(error.extensions?.code).toEqual(code);
       // stacktrace should exist
       expect(error.extensions?.stacktrace).toBeDefined();
@@ -62,16 +35,20 @@ describe('Errors', () => {
       ])[0];
       expect(error.message).toEqual(message);
       expect(error.extensions?.code).toEqual('INTERNAL_SERVER_ERROR');
-      expect(error.extensions?.exception).toHaveProperty('key', key);
+      expect(error.extensions).not.toHaveProperty('exception'); // Removed in AS4
       // stacktrace should not exist
       expect(error.extensions).not.toHaveProperty('stacktrace');
     });
     it('exposes extensions on error as extensions field and provides code', () => {
-      const error = createFormattedError();
+      const error = normalizeAndFormatErrors([
+        new GraphQLError(message, {
+          extensions: { code, key },
+        }),
+      ])[0];
       expect(error.message).toEqual(message);
-      expect(error.extensions.key).toEqual(key);
-      expect(error.extensions.exception).toBeUndefined();
-      expect(error.extensions.code).toEqual(code);
+      expect(error.extensions?.key).toEqual(key);
+      expect(error.extensions).not.toHaveProperty('exception'); // Removed in AS4
+      expect(error.extensions?.code).toEqual(code);
     });
     it('calls formatError after exposing the code and stacktrace', () => {
       const error = new GraphQLError(message, {
@@ -95,6 +72,77 @@ describe('Errors', () => {
       const error = new Error('Hello');
       const [formattedError] = normalizeAndFormatErrors([error]);
       expect(JSON.parse(JSON.stringify(formattedError)).message).toBe('Hello');
+    });
+
+    describe('formatError can be used to provide AS3-compatible extensions', () => {
+      function formatError(
+        formattedError: GraphQLFormattedError,
+        error: unknown,
+      ) {
+        const exception: Record<string, unknown> = {
+          ...(typeof error === 'object' ? error : null),
+        };
+        delete exception.extensions;
+        if (formattedError.extensions?.stacktrace) {
+          exception.stacktrace = formattedError.extensions.stacktrace;
+        }
+        const extensions: Record<string, unknown> = {
+          ...formattedError.extensions,
+          exception,
+        };
+        delete extensions.stacktrace;
+
+        return {
+          ...formattedError,
+          extensions,
+        };
+      }
+
+      it('with stack trace', () => {
+        const thrown = new Error(message);
+        (thrown as any).key = key;
+        const errors = normalizeAndFormatErrors([thrown], {
+          formatError,
+          includeStacktraceInErrorResponses: true,
+        });
+        expect(errors).toHaveLength(1);
+        const [error] = errors;
+        expect(error.extensions?.exception).toHaveProperty('stacktrace');
+        delete (error as any).extensions.exception.stacktrace;
+        expect(error).toMatchInlineSnapshot(`
+          Object {
+            "extensions": Object {
+              "code": "INTERNAL_SERVER_ERROR",
+              "exception": Object {
+                "key": "value",
+              },
+            },
+            "message": "message",
+          }
+        `);
+      });
+
+      it('without stack trace', () => {
+        const thrown = new Error(message);
+        (thrown as any).key = key;
+        const errors = normalizeAndFormatErrors([thrown], {
+          formatError,
+          includeStacktraceInErrorResponses: false,
+        });
+        expect(errors).toHaveLength(1);
+        const [error] = errors;
+        expect(error).toMatchInlineSnapshot(`
+          Object {
+            "extensions": Object {
+              "code": "INTERNAL_SERVER_ERROR",
+              "exception": Object {
+                "key": "value",
+              },
+            },
+            "message": "message",
+          }
+        `);
+      });
     });
   });
 });
