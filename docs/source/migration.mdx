@@ -595,13 +595,13 @@ In Apollo Server 3, the `debug` constructor option (which defaults to `true` unl
    - Apollo Server 3's core code rarely sends messages at the `DEBUG` level, so this primarily affects plugins that use the provided `logger` to send `DEBUG` messages.
 - The `debug` flag is available to plugins on `GraphQLRequestContext` to use as they wish.
 
-In Apollo Server 4, the `debug` constructor option has been removed. In its place is a new `includeStackTracesInErrorResponses` option which controls its namesake feature. Like `debug`, this option defaults to `true` unless the `NODE_ENV` environment variable is either `production` or `test`. If you use `debug` in Apollo Server 3, you can use `includeStackTracesInErrorResponses` with the same value in Apollo Server 4:
+In Apollo Server 4, the `debug` constructor option has been removed. In its place is a new `includeStacktraceInErrorResponses` option which controls its namesake feature. Like `debug`, this option defaults to `true` unless the `NODE_ENV` environment variable is either `production` or `test`. If you use `debug` in Apollo Server 3, you can use `includeStacktraceInErrorResponses` with the same value in Apollo Server 4:
 
 ```ts
 const apolloServerInstance = new ApolloServer<MyContext>({
   typeDefs,
   resolvers,
-  includeStackTracesInErrorResponses: true,
+  includeStacktraceInErrorResponses: true,
 });
 ```
 
@@ -617,6 +617,8 @@ const server = new ApolloServer({
   // ...
 });
 ```
+
+(Note that the stack traces themselves have moved from `extensions.exception.stacktrace` to `extensions.stacktrace`.
 
 ### `formatResponse` hook
 
@@ -756,6 +758,8 @@ throw new ApolloError(message, 'YOUR_ERROR_CODE');
 ```
 
 you should now pass your error code to the `extensions` option; see the above code snippet for an example.
+
+In Apollo Server 3, the `code` and `stacktrace` fields on errors are found at `error.extensions.exception.code` and `error.extensions.exception.stacktrace`; `error.extensions.exception` also contains any enumerable properties on the originally thrown error. In Apollo Server 4, these fields are found directly at `error.extensions.code` and `error.extensions.stacktrace`; `error.extensions.exception` is reserved for the enumerable properties of the originally thrown error only.
 
 ### Built-in error classes
 
@@ -1322,10 +1326,9 @@ In Apollo Server 3, the `apollo-server-env` package primarily provides TypeScrip
 
 Apollo Server 4 introduces `@apollo/utils.fetcher`, which defines a minimal fetch API (`Fetcher`) that provides Fetch API TypeScript typings. It is similar to `apollo-server-env` but has a clearer name and only supports argument structures that are likely to be compatible across many implementations of the Fetch API. (Specifically, it does not allow you to pass `Request` or `Headers` objects to `fetch`, because libraries often only know how to recognize their own implementations of these interfaces.)
 
-
 ### `@apollo/cache-control-types`
 
-In Apollo Server 3, you could import the `CacheScope`, `CacheHint`, `CacheAnnotation`, `CachePolicy`, and `ResolveInfoCacheControl` types from your chosen Apollo Server package. 
+In Apollo Server 3, you could import the `CacheScope`, `CacheHint`, `CacheAnnotation`, `CachePolicy`, and `ResolveInfoCacheControl` types from your chosen Apollo Server package.
 
 In Apollo Server 4,  the new `@apollo/cache-control-types` package exports the [`CacheScope`](#cachescope-type), `CacheHint`, `CacheAnnotation`, `CachePolicy`, and `ResolveInfoCacheControl` types. This enables libraries that work with multiple GraphQL servers (such as `@apollo/subgraph`) to refer to these types without depending on `@apollo/server`.
 
@@ -1356,6 +1359,11 @@ Note: this is a TypeScript-specific change. The runtime representation hasn't ch
 
 The `CacheAnnotation` type is no longer exported from any package.
 
+### Built-in error extensions
+
+Apollo Server 3 uses the `declare module` TypeScript feature to allow you to write `error.extensions.exception.code` and `error.extensions.exception.stacktrace` where `error` is any `GraphQLError` even though `exception` is an Apollo Server-specific concept. Because not all GraphQLErrors are guaranteed to have these fields (and in fact, they are added to the `GraphQLFormattedError` rather than the `GraphQLError`, Apollo Server 4 does not use this feature; the values `error.extensions.code` and `error.extensions.stacktrace` will have type `unknown`. (Note that these fields are also no longer nested inside `exception`.
+
+
 ### Renamed types
 
 This section lists the TypeScript-only types (i.e.,  interfaces, not classes) whose names changed in Apollo Server 4 (not including those mentioned elsewhere in this guide).
@@ -1363,6 +1371,7 @@ This section lists the TypeScript-only types (i.e.,  interfaces, not classes) wh
 The name of the constructor options type has changed from `Config` to the more aptly named `ApolloServerOptions`.  In Apollo Server 3, some integration packages export their own versions of this type (e.g., `ApolloServerExpressConfig`). In Apollo Server 4, there is only one `ApolloServer` type with only one constructor, so these additional types are no longer necessary.
 
 Two types in `apollo-server-express` now have more explicit names exported from `@apollo/server/express4`. `GetMiddlewareOptions` is now `ExpressMiddlewareOptions` and `ExpressContext` is now `ExpressContextFunctionArgument`.
+
 
 ### Removed types
 

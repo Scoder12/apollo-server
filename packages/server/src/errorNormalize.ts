@@ -7,15 +7,6 @@ import {
 } from 'graphql';
 import { ApolloServerErrorCode } from './errors/index.js';
 
-declare module 'graphql' {
-  export interface GraphQLErrorExtensions {
-    code?: string;
-    exception?: {
-      stacktrace?: ReadonlyArray<string>;
-    };
-  }
-}
-
 // This function accepts any value that were thrown and convert it to GraphQLFormatterError.
 // It also add default extensions.code and copy stack trace onto an extension if requested.
 // This function should not throw.
@@ -26,7 +17,7 @@ export function normalizeAndFormatErrors(
       formattedError: GraphQLFormattedError,
       error: unknown,
     ) => GraphQLFormattedError;
-    includeStackTracesInErrorResponses?: boolean;
+    includeStacktraceInErrorResponses?: boolean;
   } = {},
 ): Array<GraphQLFormattedError> {
   const formatError = options.formatError ?? ((error) => error);
@@ -34,8 +25,8 @@ export function normalizeAndFormatErrors(
     try {
       return formatError(enrichError(error), error);
     } catch (formattingError) {
-      if (options.includeStackTracesInErrorResponses) {
-        // includeStackTracesInErrorResponses is used in development
+      if (options.includeStacktraceInErrorResponses) {
+        // includeStacktraceInErrorResponses is used in development
         // so it will be helpful to show errors thrown by formatError hooks in that mode
         return enrichError(formattingError);
       } else {
@@ -47,6 +38,16 @@ export function normalizeAndFormatErrors(
       }
     }
   });
+
+  // You can't spread anything that isn't an object. If somebody
+  // puts a non-object on extensions.exception, we will just replace
+  // it with the empty object.
+  function ensureObject(x: unknown): object {
+    if (x && typeof x === 'object') {
+      return x;
+    }
+    return {};
+  }
 
   function enrichError(maybeError: unknown): GraphQLFormattedError {
     const graphqlError = ensureGraphQLError(maybeError);
@@ -66,17 +67,18 @@ export function normalizeAndFormatErrors(
 
       if (originalErrorEnumerableEntries.length > 0) {
         extensions.exception = {
-          ...extensions.exception,
+          ...ensureObject(extensions.exception),
           ...Object.fromEntries(originalErrorEnumerableEntries),
         };
       }
     }
 
-    if (options.includeStackTracesInErrorResponses) {
-      extensions.exception = {
-        ...extensions.exception,
-        stacktrace: graphqlError.stack?.split('\n'),
-      };
+    if (options.includeStacktraceInErrorResponses) {
+      // Note that if ensureGraphQLError created graphqlError from an
+      // originalError, graphqlError.stack will be the same as
+      // originalError.stack due to some special code in the GraphQLError
+      // constructor.
+      extensions.stacktrace = graphqlError.stack?.split('\n');
     }
 
     return { ...graphqlError.toJSON(), extensions };

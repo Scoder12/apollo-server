@@ -843,7 +843,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
             },
           },
           introspection: true,
-          includeStackTracesInErrorResponses: true,
+          includeStacktraceInErrorResponses: true,
           formatError,
         });
 
@@ -1020,7 +1020,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
                 }),
                 ...plugins,
               ],
-              includeStackTracesInErrorResponses: true,
+              includeStacktraceInErrorResponses: true,
               stopOnTerminationSignals: false,
               nodeEnv: '',
               ...constructorOptions,
@@ -1459,7 +1459,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
             },
           ],
           formatError,
-          includeStackTracesInErrorResponses: true,
+          includeStacktraceInErrorResponses: true,
         });
         const apolloFetch = createApolloFetch({ uri });
         const result = await apolloFetch({
@@ -1691,7 +1691,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
             expect(e.message).toMatch('valid result');
             expect(e.extensions).toBeDefined();
             expect(e.extensions.code).toEqual('SOME_CODE');
-            expect(e.extensions.exception.stacktrace).toBeDefined();
+            expect(e.extensions.stacktrace).toBeDefined();
 
             expect(contextCreationDidFail.mock.calls).toMatchInlineSnapshot(`
               Array [
@@ -1828,8 +1828,8 @@ export function defineIntegrationTestSuiteApolloServerTests(
         expect(result.errors).toBeDefined();
         expect(result.errors.length).toEqual(1);
         expect(result.errors[0].extensions.code).toEqual('SOME_CODE');
-        expect(result.errors[0].extensions.exception).toBeDefined();
-        expect(result.errors[0].extensions.exception.stacktrace).toBeDefined();
+        expect(result.errors[0].extensions.exception).toBeUndefined();
+        expect(result.errors[0].extensions.stacktrace).toBeDefined();
       });
 
       it('shows error extensions in extensions (only!)', async () => {
@@ -1850,7 +1850,7 @@ export function defineIntegrationTestSuiteApolloServerTests(
           },
           stopOnTerminationSignals: false,
           nodeEnv: 'development',
-          includeStackTracesInErrorResponses: false,
+          includeStacktraceInErrorResponses: false,
         });
 
         const apolloFetch = createApolloFetch({ uri });

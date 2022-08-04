@@ -23,7 +23,9 @@ const resolvers = {
       return 'world';
     },
     error() {
-      throw new Error('A test error');
+      const myError = new Error('A test error');
+      (myError as any).someField = 'value';
+      throw myError;
     },
     contextFoo(_root: any, _args: any, context: any) {
       return context.foo;
@@ -252,6 +254,7 @@ describe('ApolloServer executeOperation', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors?.[0].extensions).toStrictEqual({
       code: 'INTERNAL_SERVER_ERROR',
+      exception: { someField: 'value' },
     });
     await server.stop();
   });
@@ -260,7 +263,7 @@ describe('ApolloServer executeOperation', () => {
     const server = new ApolloServer({
       typeDefs,
       resolvers,
-      includeStackTracesInErrorResponses: true,
+      includeStacktraceInErrorResponses: true,
     });
     await server.start();
 
@@ -271,7 +274,8 @@ describe('ApolloServer executeOperation', () => {
     expect(result.errors).toHaveLength(1);
     const extensions = result.errors?.[0].extensions;
     expect(extensions).toHaveProperty('code', 'INTERNAL_SERVER_ERROR');
-    expect(extensions).toHaveProperty('exception.stacktrace');
+    expect(extensions).toHaveProperty('stacktrace');
+    expect(extensions).toHaveProperty('exception', { someField: 'value' });
     await server.stop();
   });
 

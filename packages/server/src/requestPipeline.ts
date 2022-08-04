@@ -563,8 +563,8 @@ export async function processGraphQLRequest<TContext extends BaseContext>(
   ): ReadonlyArray<GraphQLFormattedError> {
     return normalizeAndFormatErrors(errors, {
       formatError: internals.formatError,
-      includeStackTracesInErrorResponses:
-        internals.includeStackTracesInErrorResponses,
+      includeStacktraceInErrorResponses:
+        internals.includeStacktraceInErrorResponses,
     });
   }
 }
